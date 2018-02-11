@@ -172,6 +172,7 @@ struct HorovodGlobalState {
   bool initialization_done = false;
 
   // The MPI rank, local rank, and size.
+  MPI_Comm comm;
   int rank = 0;
   int local_rank = 0;
   int size = 1;
