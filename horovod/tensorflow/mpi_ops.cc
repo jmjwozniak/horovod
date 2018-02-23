@@ -803,7 +803,8 @@ void PerformOperation(TensorTable& tensor_table, MPIResponse response) {
     auto result = MPI_Allgatherv((const void*)e.tensor.tensor_data().data(),
                                  (int)e.tensor.NumElements(), dtype,
                                  (void*)e.output->tensor_data().data(),
-                                 recvcounts, displcmnts, dtype, MPI_COMM_WORLD);
+                                 recvcounts, displcmnts, dtype,
+                                 horovod_global.comm);
     delete[] recvcounts;
     delete[] displcmnts;
     MPI_CHECK(entries, "MPI_Allgatherv", result)
@@ -843,7 +844,7 @@ void PerformOperation(TensorTable& tensor_table, MPIResponse response) {
 
         MPI_CHECK(entries, "MPI_Bcast",
                   MPI_Bcast((void*)&nccl_id, sizeof(nccl_id), MPI_BYTE, 0,
-                            MPI_COMM_WORLD));
+                            state.comm));
 
         ncclComm_t new_nccl_comm;
         NCCL_CHECK(entries, "ncclCommInitRank",
@@ -853,7 +854,7 @@ void PerformOperation(TensorTable& tensor_table, MPIResponse response) {
 
         // Barrier helps NCCL to synchronize after initialization and avoid
         // deadlock that we've been seeing without it.
-        MPI_CHECK(entries, "MPI_Barrier", MPI_Barrier(MPI_COMM_WORLD));
+        MPI_CHECK(entries, "MPI_Barrier", MPI_Barrier(state.comm));
 
         ACTIVITY_END_ALL(entries, timeline)
       }
@@ -1062,7 +1063,7 @@ void PerformOperation(TensorTable& tensor_table, MPIResponse response) {
       MPI_CHECK(entries, "MPI_Allreduce",
                 MPI_Allreduce(MPI_IN_PLACE, (void*)buffer_data,
                               (int)num_elements, dtype, MPI_SUM,
-                              MPI_COMM_WORLD))
+                              horovod_global.comm))
       ACTIVITY_END_ALL(entries, timeline)
 
       // Copy memory out of the fusion buffer.
@@ -1103,7 +1104,7 @@ void PerformOperation(TensorTable& tensor_table, MPIResponse response) {
                 MPI_Allreduce((const void*)e.tensor.tensor_data().data(),
                               (void*)e.output->tensor_data().data(),
                               (int)e.tensor.NumElements(), dtype, MPI_SUM,
-                              MPI_COMM_WORLD))
+                              horovod_global.comm))
       ACTIVITY_END_ALL(entries, timeline)
     }
 
@@ -1134,7 +1135,7 @@ void PerformOperation(TensorTable& tensor_table, MPIResponse response) {
     ACTIVITY_START_ALL(entries, timeline, "MPI_BCAST")
     MPI_CHECK(entries, "MPI_Bcast",
               MPI_Bcast(data_ptr, (int)e.tensor.NumElements(), dtype,
-                        e.root_rank, MPI_COMM_WORLD))
+                        e.root_rank, horovod_global.comm))
     ACTIVITY_END_ALL(entries, timeline)
 
     timeline.End(e.tensor_name, e.output);
@@ -1196,6 +1197,8 @@ void CheckForStalledTensors(HorovodGlobalState& state) {
   }
 }
 
+static void SetComm(MPI_Comm* state_comm);
+
 // The MPI background thread loop coordinates all the MPI processes and the
 // tensor reductions. The design of the communicator mechanism is limited by a
 // few considerations:
@@ -1249,20 +1252,22 @@ void CheckForStalledTensors(HorovodGlobalState& state) {
 void BackgroundThreadLoop(HorovodGlobalState& state) {
   // Initialize MPI. This must happen on the background thread, since not all
   // MPI implementations support being called from multiple threads.
-  MPI_Init(NULL, NULL);
+
+  SetComm(&state.comm);
 
   // Get MPI rank to determine if we are rank zero.
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(state.comm, &rank);
+
   bool is_coordinator = rank == 0;
 
   // Get MPI size to determine how many tensors to wait for before reducing.
   int size;
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_size(state.comm, &size);
 
   // Determine local rank by querying the local communicator.
   MPI_Comm local_comm;
-  MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
+  MPI_Comm_split_type(state.comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
                       &local_comm);
   int local_rank;
   MPI_Comm_rank(local_comm, &local_rank);
@@ -1326,7 +1331,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
         std::string encoded_message;
         MPIRequest::SerializeToString(message, encoded_message);
         MPI_Send(encoded_message.c_str(), (int)encoded_message.length() + 1,
-                 MPI_BYTE, RANK_ZERO, TAG_NOTIFY, MPI_COMM_WORLD);
+                 MPI_BYTE, RANK_ZERO, TAG_NOTIFY, state.comm);
       }
     }
 
@@ -1341,7 +1346,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
       int completed_ranks = 1;
       while (completed_ranks != size) {
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, TAG_NOTIFY, MPI_COMM_WORLD, &status);
+        MPI_Probe(MPI_ANY_SOURCE, TAG_NOTIFY, state.comm, &status);
 
         // Find number of characters in message (including zero byte).
         int source_rank = status.MPI_SOURCE;
@@ -1351,7 +1356,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
         // If the length is zero, this is a DONE message.
         if (msg_length == 0) {
           completed_ranks++;
-          MPI_Recv(NULL, 0, MPI_BYTE, source_rank, TAG_NOTIFY, MPI_COMM_WORLD,
+          MPI_Recv(NULL, 0, MPI_BYTE, source_rank, TAG_NOTIFY, state.comm,
                    &status);
           continue;
         }
@@ -1359,7 +1364,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
         // Get tensor name from MPI into an std::string.
         char* buffer = new char[msg_length];
         MPI_Recv(buffer, msg_length, MPI_BYTE, source_rank, TAG_NOTIFY,
-                 MPI_COMM_WORLD, &status);
+                 state.comm, &status);
         std::string received_data(buffer, (size_t)msg_length);
         delete[] buffer;
 
@@ -1427,7 +1432,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
         MPIResponse::SerializeToString(response, encoded_response);
         for (int r = 1; r < size; r++) {
           MPI_Send(encoded_response.c_str(), (int)encoded_response.length() + 1,
-                   MPI_BYTE, r, TAG_NOTIFY, MPI_COMM_WORLD);
+                   MPI_BYTE, r, TAG_NOTIFY, state.comm);
         }
 
         // Perform the collective operation. All nodes should end up performing
@@ -1444,7 +1449,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
       MPIResponse::SerializeToString(done_response, encoded_response);
       for (int r = 1; r < size; r++) {
         MPI_Send(encoded_response.c_str(), (int)encoded_response.length() + 1,
-                 MPI_BYTE, r, TAG_NOTIFY, MPI_COMM_WORLD);
+                 MPI_BYTE, r, TAG_NOTIFY, state.comm);
       }
 
       // Check for stalled tensors.
@@ -1456,13 +1461,13 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
     } else {
       // Notify the coordinator that this node is done sending messages.
       // A DONE message is encoded as a zero-length message.
-      MPI_Send(NULL, 0, MPI_BYTE, RANK_ZERO, TAG_NOTIFY, MPI_COMM_WORLD);
+      MPI_Send(NULL, 0, MPI_BYTE, RANK_ZERO, TAG_NOTIFY, state.comm);
 
       // Receive names for tensors to reduce from rank zero.
       // Once we receive a empty DONE message, stop waiting for more names.
       while (true) {
         MPI_Status status;
-        MPI_Probe(0, TAG_NOTIFY, MPI_COMM_WORLD, &status);
+        MPI_Probe(0, TAG_NOTIFY, state.comm, &status);
 
         // Find number of characters in message (including zero byte).
         int msg_length;
@@ -1470,7 +1475,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
 
         // Get tensor name from MPI into an std::string.
         char* buffer = new char[msg_length];
-        MPI_Recv(buffer, msg_length, MPI_BYTE, 0, TAG_NOTIFY, MPI_COMM_WORLD,
+        MPI_Recv(buffer, msg_length, MPI_BYTE, 0, TAG_NOTIFY, state.comm,
                  &status);
         std::string received_message(buffer, (size_t)msg_length);
         delete[] buffer;
@@ -1509,7 +1514,28 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
   //    ncclCommDestroy(it->second);
   //  }
   //#endif
-  MPI_Finalize();
+  if (state.comm == MPI_COMM_WORLD)
+    MPI_Finalize();
+}
+
+// Set the main MPI communicator to be used by Horovod
+// If not set in the environment, defaults to MPI_COMM_WORLD
+static void SetComm(MPI_Comm* state_comm) {
+  auto comm_string = std::getenv("HOROVOD_COMM");
+  if (comm_string == NULL ||
+      strlen(comm_string) == 0) {
+    MPI_Init(NULL, NULL);
+    *state_comm = MPI_COMM_WORLD;
+  } else {
+    std::cout << "Get HOROVOD_COMM: " << comm_string << std::endl;
+    int c;
+    int n = sscanf(comm_string, "%i", &c);
+    if (n != 1) {
+      std::cerr << "Invalid HOROVOD_COMM: " << comm_string << std::endl;
+      exit(1);
+    }
+    *state_comm = c;
+  }
 }
 
 // Start Horovod background thread. Ensure that this is
@@ -1615,7 +1641,7 @@ void EnqueueTensorAllreduce(OpKernelContext* context, const Tensor& tensor,
   }
 
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(horovod_global.comm, &rank);
 
   MPIRequest message;
   message.set_request_rank(rank);
@@ -1655,7 +1681,7 @@ void EnqueueTensorAllgather(OpKernelContext* context, const Tensor& tensor,
   }
 
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(horovod_global.comm, &rank);
 
   MPIRequest message;
   message.set_request_rank(rank);
@@ -1695,7 +1721,7 @@ void EnqueueTensorBroadcast(OpKernelContext* context, const Tensor& tensor,
   }
 
   int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(horovod_global.comm, &rank);
 
   MPIRequest message;
   message.set_request_rank(rank);
