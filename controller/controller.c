@@ -10,7 +10,7 @@
 #include "controller.h"
 
 static int
-handle_python_exception()
+handle_python_exception(void)
 {
   printf("\n");
   printf("PYTHON EXCEPTION:\n");
@@ -51,7 +51,7 @@ static bool initialized = false;
 
 static int python_init(void)
 {
-/* Loading python library symbols so that dynamic extensions don't throw symbol not found error.           
+/* Loading python library symbols so that dynamic extensions don't throw symbol not found error.
            Ref Link: http://stackoverflow.com/questions/29880931/importerror-and-pyexc-systemerror-while-embedding-python-script-within-c-for-pam
         */
   char str_python_lib[17];
@@ -68,11 +68,11 @@ static int python_init(void)
   printf("python: initializing...\n");
   Py_InitializeEx(1);
   main_module  = PyImport_AddModule("__main__");
-  if (main_module == NULL) return handle_python_exception(true);
+  if (main_module == NULL) return handle_python_exception();
   main_dict = PyModule_GetDict(main_module);
-  if (main_dict == NULL) return handle_python_exception(true);
+  if (main_dict == NULL) return handle_python_exception();
   local_dict = PyDict_New();
-  if (local_dict == NULL) return handle_python_exception(true);
+  if (local_dict == NULL) return handle_python_exception();
   initialized = true;
   return TCL_OK;
 }
@@ -82,34 +82,34 @@ static void python_finalize(void);
 static char* python_result_default   = "__NOTHING__";
 static char* python_result_exception = "__EXCEPTION__";
 
-#define EXCEPTION(ee)                                             \
-  {                                                               \
-    *output = Tcl_NewStringObj(python_result_exception, -1);      \
-    return handle_python_exception(ee);                           \
+#define EXCEPTION()                             \
+  {                                             \
+    return handle_python_exception();           \
   }
 
 int
-controller(MPI_Comm comm)
+controller(MPI_Comm comm, char* code)
 {
-  // bool python_eval(const char* expr, char** output)
+  python_init();
 
-  char*  expr = "import horovod";
-  char*  result = python_result_default;
-  char** output = NULL;
+  PyRun_String(code, Py_file_input, main_dict, local_dict);
+  if (PyErr_Occurred()) EXCEPTION();
+
 
   // Evaluate expression:
-  printf("python: expr: %s\n", expr);
-  PyObject* o = PyRun_String(expr, Py_eval_input, main_dict, local_dict);
-  if (o == NULL) return handle_python_exception();
+  /* printf("python: expr: %s\n", expr); */
+  /* PyObject* o = PyRun_String(expr, Py_eval_input, main_dict, local_dict); */
+  /* if (o == NULL) return handle_python_exception(); */
 
   // Convert Python result to C string
-  int pc = PyArg_Parse(o, "s", &result);
-  if (pc != 1) return handle_python_non_string(o);
-  printf("python: result: %s\n", result);
-  *output = strdup(result);
+  /* int pc = PyArg_Parse(o, "s", &result); */
+  /* if (pc != 1) return handle_python_non_string(o); */
+  /* printf("python: result: %s\n", result); */
+  /* *output = strdup(result); */
 
   // Clean up and return:
-  Py_DECREF(o);
+  // Py_DECREF(o);
 
-  // return true;
+  printf("PyRun_String() done.\n");
+  return 0;
 }

@@ -1,4 +1,6 @@
 #!/bin/sh
 set -eu
 
-mpiexec.mpich -l -n 2 py-eval -v controller/start.py 0
+THIS=$( dirname $0 )
+
+mpiexec.mpich -l -n 2 py-eval -v $THIS/start.py 0

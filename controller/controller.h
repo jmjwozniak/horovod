@@ -5,4 +5,4 @@
 
 #pragma once
 
-int controller(MPI_Comm comm);
+int controller(MPI_Comm comm, char* code);
