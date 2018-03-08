@@ -82,6 +82,10 @@ def init():
     """
     return MPI_LIB_CTYPES.horovod_tensorflow_init()
 
+def stop():
+    """A function which stops Horovod.
+    """
+    return MPI_LIB_CTYPES.horovod_tensorflow_stop()
 
 def size():
     """A function which returns the number of Horovod processes.

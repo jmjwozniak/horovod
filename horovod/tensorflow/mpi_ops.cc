@@ -210,8 +210,13 @@ struct HorovodGlobalState {
     // Make sure that the destructor of the background thread is safe to
     // call. If a thread is still joinable (not detached or complete) its
     // destructor cannot be called.
+    shut_down();
+  }
+
+  void shut_down() {
     if (background_thread.joinable()) {
       shut_down = true;
+      initialize_flag.clear();
       background_thread.join();
     }
   }
@@ -1546,6 +1551,8 @@ static void SetComm(MPI_Comm* state_comm) {
 void InitializeHorovodOnce() {
   // Ensure background thread is only started once.
   if (!horovod_global.initialize_flag.test_and_set()) {
+    horovod_global.shut_down = false;
+    horovod_global.initialization_done = false;
     horovod_global.background_thread =
         std::thread(BackgroundThreadLoop, std::ref(horovod_global));
   }
@@ -1554,6 +1561,10 @@ void InitializeHorovodOnce() {
   while (!horovod_global.initialization_done) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
+}
+
+void HorovodStop() {
+  horovod_global.shut_down();
 }
 
 // Check that Horovod is initialized.
@@ -1567,6 +1578,8 @@ Status CheckInitialized() {
 
 // C interface to initialize Horovod.
 extern "C" void horovod_tensorflow_init() { InitializeHorovodOnce(); }
+
+extern "C" void horovod_tensorflow_stop() { HorovodStop(); }
 
 // C interface to get index of current Horovod process.
 // Returns -1 if Horovod is not initialized.

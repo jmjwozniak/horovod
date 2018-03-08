@@ -39,6 +39,7 @@ from horovod.tensorflow.mpi_ops import allgather
 from horovod.tensorflow.mpi_ops import broadcast
 from horovod.tensorflow.mpi_ops import _allreduce
 from horovod.tensorflow.mpi_ops import init
+from horovod.tensorflow.mpi_ops import stop
 
 
 def allreduce(tensor, average=True, device_dense='', device_sparse=''):

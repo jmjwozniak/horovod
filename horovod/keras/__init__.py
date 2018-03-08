@@ -18,6 +18,7 @@ import tensorflow as tf
 
 import horovod.tensorflow as hvd
 from horovod.tensorflow import init
+from horovod.tensorflow import stop
 from horovod.tensorflow import size
 from horovod.tensorflow import rank
 from horovod.tensorflow import local_rank
