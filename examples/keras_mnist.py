@@ -8,6 +8,7 @@ from keras import backend as K
 import math
 import tensorflow as tf
 import horovod.keras as hvd
+import sys
 
 # Horovod: initialize Horovod.
 hvd.init()
@@ -22,13 +23,23 @@ batch_size = 128
 num_classes = 10
 
 # Horovod: adjust number of epochs based on number of GPUs.
-epochs = int(math.ceil(12.0 / hvd.size()))
+epochs = 1 # int(math.ceil(12.0 / hvd.size()))
 
 # Input image dimensions
 img_rows, img_cols = 28, 28
 
 # The data, shuffled and split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
+print("loaded data")
+
+# print(x_train.__class__)
+# print(x_train.shape)
+x_train = x_train[0:1000,:,:]
+y_train = y_train[0:1000]
+x_test = x_test[0:200,:,:]
+y_test = y_test[0:200]
+# sys.exit(0)
+
 
 if K.image_data_format() == 'channels_first':
     x_train = x_train.reshape(x_train.shape[0], 1, img_rows, img_cols)
@@ -63,6 +74,8 @@ model.add(Dense(128, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(num_classes, activation='softmax'))
 
+print("built model")
+
 # Horovod: adjust learning rate based on number of GPUs.
 opt = keras.optimizers.Adadelta(1.0 * hvd.size())
 
@@ -93,3 +106,15 @@ model.fit(x_train, y_train,
 score = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          callbacks=callbacks,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
+score = model.evaluate(x_test, y_test, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
+
+print("MNIST PY COMPLETE")

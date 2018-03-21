@@ -210,10 +210,11 @@ struct HorovodGlobalState {
     // Make sure that the destructor of the background thread is safe to
     // call. If a thread is still joinable (not detached or complete) its
     // destructor cannot be called.
-    shut_down();
+    do_shut_down();
   }
 
-  void shut_down() {
+  void do_shut_down(void) {
+    std::cout << "do_shut_down()" << std::endl;
     if (background_thread.joinable()) {
       shut_down = true;
       initialize_flag.clear();
@@ -1260,6 +1261,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
   // MPI implementations support being called from multiple threads.
 
   SetComm(&state.comm);
+  std::cout << "ThreadLoop\n";
 
   // Get MPI rank to determine if we are rank zero.
   int rank;
@@ -1439,6 +1441,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
         std::string encoded_response;
         MPIResponse::SerializeToString(response, encoded_response);
         for (int r = 1; r < size; r++) {
+          // std::cout << "tensor: " << encoded_response << "\n";
           MPI_Send(encoded_response.c_str(), (int)encoded_response.length() + 1,
                    MPI_BYTE, r, TAG_NOTIFY, state.comm);
         }
@@ -1469,6 +1472,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
     } else {
       // Notify the coordinator that this node is done sending messages.
       // A DONE message is encoded as a zero-length message.
+      std::cout << "sending DONE!" << std::endl;
       MPI_Send(NULL, 0, MPI_BYTE, RANK_ZERO, TAG_NOTIFY, state.comm);
 
       // Receive names for tensors to reduce from rank zero.
@@ -1505,6 +1509,8 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
       }
     }
   } while (!should_shut_down);
+
+  std::cout << "shut down!" << std::endl;
 
   for (auto it = state.tensor_fusion_buffers.begin();
        it != state.tensor_fusion_buffers.end(); it++) {
@@ -1564,7 +1570,7 @@ void InitializeHorovodOnce() {
 }
 
 void HorovodStop() {
-  horovod_global.shut_down();
+  horovod_global.do_shut_down();
 }
 
 // Check that Horovod is initialized.
