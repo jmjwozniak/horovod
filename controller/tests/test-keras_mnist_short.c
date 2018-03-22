@@ -19,7 +19,7 @@
 
 static void usage(void);
 static char* slurp(const char* filename);
-static int do_controller(char* code);
+static int do_controller(char* program, char* code);
 
 int
 main(int argc, char* argv[]) {
@@ -31,12 +31,15 @@ main(int argc, char* argv[]) {
   }
 
   // Read code
-  char* code = slurp(argv[1]);
+  char* program = argv[1];
+  char* code = slurp(program);
   if (code == NULL)
     exit(1);
 
   // Run it
-  int rc = do_controller(code);
+  int rc = do_controller(program, code);
+
+  printf("exit.\n");
 
   // Clean up and return
   free(code);
@@ -45,10 +48,15 @@ main(int argc, char* argv[]) {
   return EXIT_SUCCESS;
 }
 
-static int do_controller(char* code) {
+static int do_controller(char* program, char* code) {
   MPI_Init(0, 0);
   MPI_Comm child;
   MPI_Comm_dup(MPI_COMM_WORLD, &child);
+
+  int rank;
+  MPI_Comm_rank(child, &rank);
+  if (rank == 0)
+    printf("running: %s\n", program);
 
   // Call to controller library
   int rc = controller(child, code);
