@@ -1,0 +1,46 @@
+
+== Install dependencies
+
+----
+# Download Anaconda
+$ wget https://repo.continuum.io/archive/Anaconda3-5.0.1-Linux-x86_64.sh
+
+# Make the installer executable
+$ chmod u+x ./Anaconda3-5.0.1-Linux-x86_64.sh
+
+# Run the installer, accepting the defaults.
+$ ./Anaconda3-5.0.1-Linux-x86_64.sh
+
+# Source the relevant bash file to add anaconda3/bin to your path
+$ source ~/.bash_profile
+$ source ~/.bashrc
+
+# Or you can manually update your path
+$ export PATH=$HOME/anaconda3/bin:$PATH
+
+# Install/update additional modules not shipped with Anaconda
+$ conda install --yes -c conda-forge tensorflow
+$ conda update  --yes -c anaconda    pandas
+$ conda update  --yes -c anaconda    numpy
+$ conda install --yes hdf5
+$ pip install git+git://github.com/fchollet/keras.git
+----
+
+== Build
+
+1. Edit controller/Makefile to include the settings for your system
+2. Edit controller/tests/test-keras_mnist_short.sh to include the settings
+   for your system
+3. Use:
++
+----
+$ cd controller
+$ make tests/test-keras_mnist_short.x
+----
+
+== Run
+
+----
+$ cd controller
+$ tests/test-keras_mnist_short.sh
+----
