@@ -1514,6 +1514,7 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
   for (auto it = state.tensor_fusion_buffers.begin();
        it != state.tensor_fusion_buffers.end(); it++) {
     delete it->second;
+    it->second = nullptr;
   }
 
   // TODO: init.cu:645 WARN Cuda failure 'driver shutting down'
