@@ -1,4 +1,13 @@
 
+/*
+  TEST KERAS MNIST SHORT C
+
+  Example of how to run a Horovod program using the controller
+  Reads a Horovod Python program as a string,
+  creates a child communicator,
+  and passes that communicator and program to the Horovod controller.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
