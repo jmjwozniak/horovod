@@ -83,8 +83,6 @@ python_init(void)
   return 1;
 }
 
-static void python_finalize(void);
-
 int
 controller(MPI_Comm comm, char* code)
 {
