@@ -12,10 +12,9 @@ CONTROLLER     = $(HOROVOD)/controller
 PYTHON_VERSION = 3.6m
 PYTHON_INCLUDE = /usb1/sfw/anaconda3/include/python$(PYTHON_VERSION)
 PYTHON_LIB     = /usb1/sfw/anaconda3/lib
-TCL_INCLUDE    = /usr/include/tcl8.6
 # USER SETTINGS END
 
-INCLUDES = -I $(PYTHON_INCLUDE) -I $(TCL_INCLUDE) -I $(CONTROLLER)
+INCLUDES = -I $(PYTHON_INCLUDE) -I $(CONTROLLER)
 
 CPPFLAGS = $(INCLUDES)
 CFLAGS = -fPIC -fmax-errors=1
