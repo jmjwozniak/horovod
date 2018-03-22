@@ -101,5 +101,5 @@ controller(MPI_Comm comm, char* code)
   if (PyErr_Occurred()) return handle_python_exception();
 
   printf("PyRun_String() done.\n");
-  return 0;
+  return 1;
 }
