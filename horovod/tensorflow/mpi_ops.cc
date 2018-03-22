@@ -1472,7 +1472,6 @@ void BackgroundThreadLoop(HorovodGlobalState& state) {
     } else {
       // Notify the coordinator that this node is done sending messages.
       // A DONE message is encoded as a zero-length message.
-      std::cout << "sending DONE!" << std::endl;
       MPI_Send(NULL, 0, MPI_BYTE, RANK_ZERO, TAG_NOTIFY, state.comm);
 
       // Receive names for tensors to reduce from rank zero.
