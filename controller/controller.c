@@ -55,8 +55,6 @@ static PyObject* local_dict  = NULL;
 
 static bool initialized = false;
 
-
-
 static int
 python_init(void)
 {
@@ -86,9 +84,6 @@ python_init(void)
 }
 
 static void python_finalize(void);
-
-static char* python_result_default   = "__NOTHING__";
-static char* python_result_exception = "__EXCEPTION__";
 
 int
 controller(MPI_Comm comm, char* code)
