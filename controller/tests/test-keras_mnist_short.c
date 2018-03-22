@@ -19,7 +19,7 @@
 
 static void usage(void);
 static char* slurp(const char* filename);
-static void do_controller(char* code);
+static int do_controller(char* code);
 
 int
 main(int argc, char* argv[]) {
@@ -36,22 +36,25 @@ main(int argc, char* argv[]) {
     exit(1);
 
   // Run it
-  do_controller(code);
+  int rc = do_controller(code);
 
   // Clean up and return
   free(code);
-  return 0;
+  if (rc == 0)
+    return EXIT_FAILURE;
+  return EXIT_SUCCESS;
 }
 
-static void do_controller(char* code) {
+static int do_controller(char* code) {
   MPI_Init(0, 0);
   MPI_Comm child;
   MPI_Comm_dup(MPI_COMM_WORLD, &child);
 
   // Call to controller library
-  controller(child, code);
+  int rc = controller(child, code);
 
   MPI_Finalize();
+  return rc;
 }
 
 static void

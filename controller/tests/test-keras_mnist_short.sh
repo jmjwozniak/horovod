@@ -16,9 +16,11 @@ cd $THIS
 HOROVOD=$( cd $THIS/../.. ; /bin/pwd )
 EXAMPLE_MNIST=$HOROVOD/examples/keras_mnist_short.py
 
-if $MPIEXEC -n 2 ./test-keras_mnist_short.x $EXAMPLE_MNIST
+if ! $MPIEXEC -n 2 ./test-keras_mnist_short.x $EXAMPLE_MNIST
 then
-  echo "TEST OK"
-else
   echo "TEST FAIL"
+  exit 1
 fi
+
+echo "TEST OK"
+exit 0
