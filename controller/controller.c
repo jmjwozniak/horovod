@@ -91,13 +91,12 @@ controller(MPI_Comm comm, char* code)
   // Store the communicator in the environment for Horovod
   char s[32];
   sprintf(s, "%i", comm);
-  printf("Set HOROVOD_COMM: %s", s);
+  printf("Set HOROVOD_COMM: %s\n", s);
   setenv("HOROVOD_COMM", s, 1);
 
   // Run the Horovod Python program
   PyRun_String(code, Py_file_input, main_dict, local_dict);
   if (PyErr_Occurred()) return handle_python_exception();
 
-  printf("PyRun_String() done.\n");
   return 1;
 }
