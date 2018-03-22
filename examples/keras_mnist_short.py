@@ -10,12 +10,8 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras import backend as K
 import math
-import sys
 import tensorflow as tf
 import horovod.keras as hvd
-
-# Fix for TensorFlow
-sys.argv = [ "mnist" ]
 
 # Horovod: initialize Horovod.
 hvd.init()
