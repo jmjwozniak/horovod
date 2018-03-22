@@ -32,7 +32,7 @@ $ conda install --yes hdf5
 $ pip install git+git://github.com/fchollet/keras.git
 
 # Check out Wozniak's Horovod fork
-$ https://github.com/jmjwozniak/horovod.git
+$ git clone https://github.com/jmjwozniak/horovod.git
 ----
 
 == Build
