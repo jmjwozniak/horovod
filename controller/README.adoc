@@ -2,7 +2,7 @@
 This directory contains the Horovod controller, which is a C library that
 allows you to invoke Horovod from a parent C program.
 
-An example C program is in controller/tests/test-keras_mnist_short.c
+An example C program is in controller/tests/test-keras_mnist_short.c +
 This uses the Horovod Python program in examples/keras_mnist_short.py
 
 == Install dependencies
