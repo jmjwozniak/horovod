@@ -51,5 +51,5 @@ $ make tests/test-keras_mnist_short.x
 
 ----
 $ cd controller
-$ tests/test-keras_mnist_short.sh
+$ tests/test-keras_mnist_short.sh 1
 ----
