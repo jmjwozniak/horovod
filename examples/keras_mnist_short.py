@@ -1,5 +1,5 @@
 
-# KERAS MNIST SHORT
+# KERAS MNIST SHORT PY
 # Like keras_mnist.py, but reduces data size for a very short test
 
 from __future__ import print_function
